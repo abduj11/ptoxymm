@@ -2,7 +2,7 @@
   "name": "ptoxymm",
   "version": "1.0.0",
   "description": "Lightweight authenticated forward proxy for Render (free tier).",
-  "main": "server.js",
+  "main": "index.js",
   "engines": {
     "node": ">=18"
   },
