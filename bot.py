@@ -1,35 +1,35 @@
 import os
 import subprocess
+from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 TOKEN = os.getenv("BOT_TOKEN")
+# رابط الخدمة الخاص بك على Render
+WEBHOOK_URL = f"https://<اسم-الخدمة-على-رندر>.onrender.com/{TOKEN}"
 
+app_flask = Flask(__name__)
+bot_app = ApplicationBuilder().token(TOKEN).build()
+
+# دالة التحليل التي نستخدمها
 async def analyze_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # استقبال الملف
-    file = await update.message.effective_attachment.get_file()
-    file_path = f"downloads/{file.file_id}"
-    os.makedirs("downloads", exist_ok=True)
-    await file.download_to_drive(file_path)
+    # ... (نفس دالة التحليل السابقة) ...
+    pass
 
-    await update.message.reply_text("🔎 جاري فحص الملف بأدوات OSINT...")
+bot_app.add_handler(MessageHandler(filters.ATTACHMENT | filters.PHOTO, analyze_file))
 
-    # 1. تحليل Metadata (ExifTool)
-    exif = subprocess.getoutput(f"exiftool {file_path}")
-    
-    # 2. فحص الملفات المخفية (Binwalk)
-    binwalk = subprocess.getoutput(f"binwalk {file_path}")
+# استقبال التحديثات من تليجرام
+@app_flask.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot_app.bot)
+    bot_app.update_queue.put(update)
+    return "OK", 200
 
-    report = f"📊 **نتائج التحليل:**\n\n**ExifTool:**\n`{exif[:500]}`...\n\n**Binwalk:**\n`{binwalk[:500]}`"
-    await update.message.reply_text(report, parse_mode="Markdown")
-    
-    # تنظيف الملفات بعد التحليل
-    os.remove(file_path)
+@app_flask.route("/")
+def home():
+    return "Spider OSINT Bot is Online!"
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(TOKEN).build()
-    # معالج لاستقبال الصور والملفات
-    app.add_handler(MessageHandler(filters.ATTACHMENT | filters.PHOTO, analyze_file))
-    
-    print("🚀 Spider OSINT Bot is running on Render...")
-    app.run_polling()
+    # تشغيل Flask فقط - لا تستخدم run_polling نهائياً
+    port = int(os.environ.get("PORT", 10000))
+    app_flask.run(host='0.0.0.0', port=port)
